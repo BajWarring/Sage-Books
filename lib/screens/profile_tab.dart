@@ -83,18 +83,20 @@ class _ProfileTabState extends State<ProfileTab> {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  // --- FIX: Capture Result ---
-                  final user = await _authService.signInWithGoogle();
-                  if (user == null) {
-                     // Show error if sign in failed
-                     if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sign In Failed. Check SHA-1 & Google-Services.json'),
-                            backgroundColor: Colors.red,
-                          )
-                        );
-                     }
+                  try {
+                    await _authService.signInWithGoogle();
+                    // If successful, the StreamBuilder will automatically update the UI
+                  } catch (e) {
+                    // --- FIX: SHOW ERROR ON SCREEN ---
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Login Failed: $e'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 10), // Long duration to read it
+                        ),
+                      );
+                    }
                   }
                 },
                 icon: const Icon(Icons.login, color: _primaryOrange),

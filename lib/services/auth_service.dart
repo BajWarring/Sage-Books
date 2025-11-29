@@ -32,8 +32,9 @@ class AuthService {
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
       return userCredential.user;
     } catch (e) {
+      // --- FIX: Rethrow the error so the UI can see it ---
       debugPrint("Error signing in: $e");
-      return null;
+      throw e; 
     }
   }
 
