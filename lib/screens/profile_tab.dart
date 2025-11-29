@@ -58,7 +58,7 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _buildLoggedOutView() {
+    Widget _buildLoggedOutView() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -83,7 +83,19 @@ class _ProfileTabState extends State<ProfileTab> {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  await _authService.signInWithGoogle();
+                  // --- FIX: Capture Result ---
+                  final user = await _authService.signInWithGoogle();
+                  if (user == null) {
+                     // Show error if sign in failed
+                     if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Sign In Failed. Check SHA-1 & Google-Services.json'),
+                            backgroundColor: Colors.red,
+                          )
+                        );
+                     }
+                  }
                 },
                 icon: const Icon(Icons.login, color: _primaryOrange),
                 label: const Text('Sign in with Google', style: TextStyle(color: _textDark)),
@@ -99,6 +111,7 @@ class _ProfileTabState extends State<ProfileTab> {
       ),
     );
   }
+
 
   Widget _buildLoggedInView(User user) {
     return Center(

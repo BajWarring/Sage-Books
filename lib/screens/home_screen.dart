@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:sage/models/cashflow.dart';
+import 'package:hive_flutter/hive_flutter.dart'; // Needed for Hive
+import 'package:sage/models/cashbook.dart';       // Needed for Cashbook model
 import 'package:sage/screens/cashbook_tab.dart';
-import 'package:sage/screens/entry_form_screen.dart';
 import 'package:sage/screens/profile_tab.dart';
 import 'package:sage/screens/settings_tab.dart';
-import 'package:sage/utils/transitions.dart';
 
-// --- NEW: Colors from HTML mockup ---
-const Color _primaryOrange = Color(0xFFFF6B00);
+const Color _primaryOrange = Color(0xFFF15A24);
 const Color _textMedium = Color(0xFF5F5F5F);
 const Color _bgLightGrey = Color(0xFFF9F9F9);
 const Color _bgWhite = Color(0xFFFFFFFF);
 const Color _borderLight = Color(0xFFECECEC);
-// --- End New Colors ---
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,38 +24,15 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isSearching = false;
   bool _isProfileOpen = false;
 
-  late AnimationController _fabAnimationController;
-  late Animation<Offset> _fabAnimation;
-
-  // This controller will be passed to the CashbookTab
   final TextEditingController _searchController = TextEditingController();
 
   final List<Widget> _pages = [
-    // We pass the search controller down to the cashbook tab
     CashbookTab(searchController: TextEditingController()),
     const SettingsTab(),
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _fabAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(0, -0.15),
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: Curves.easeInOut,
-    ));
-  }
-
-  @override
   void dispose() {
-    _fabAnimationController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -84,22 +58,47 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  // --- FIX 1: Logic to Create New Cashbook ---
   void _onAddCashbook() {
-    // This logic is moved from CashbookTab
-    // You need to implement _showCreateCashbookDialog here or pass the context
-    // For now, let's use the Add Entry screen as a placeholder
-    Navigator.of(context).push(
-      SlideRightRoute(
-        page: const EntryFormScreen(
-          cashbookName: "Your Default Cashbook", // This needs to be dynamic
-          initialCashFlow: CashFlow.cashIn,
+    final nameController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Cashbook'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Cashbook Name',
+            hintText: 'e.g. Office, Home, Travel',
+            border: OutlineInputBorder(),
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _primaryOrange),
+            onPressed: () async {
+              if (nameController.text.trim().isNotEmpty) {
+                final box = Hive.box<Cashbook>('cashbooks');
+                final newBook = Cashbook(
+                  name: nameController.text.trim(),
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                  entries: HiveList(Hive.box('entries')), 
+                );
+                await box.add(newBook);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
       ),
-    );
-    // In a real app, you'd call the _showCreateCashbookDialog
-    // from cashbook_tab.dart. For simplicity, I'll pop a snackbar.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add Cashbook functionality goes here!')),
     );
   }
 
@@ -144,7 +143,26 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // --- NEW: Custom AppBar from HTML ---
+  // --- FIX 2: Use Scale + Slide to hide FAB completely ---
+  Widget _buildFab(BuildContext context) {
+    // Hide if profile is open OR if we are not on the Cashbook tab
+    bool isFabVisible = _selectedIndex == 0 && !_isProfileOpen;
+
+    return AnimatedScale(
+      scale: isFabVisible ? 1.0 : 0.0, // Shrink to 0 when hidden
+      duration: const Duration(milliseconds: 200),
+      child: FloatingActionButton(
+        onPressed: _onAddCashbook, // Calls the new dialog logic
+        backgroundColor: _primaryOrange,
+        shape: const CircleBorder(),
+        elevation: 8.0,
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      ),
+    );
+  }
+
+  // ... (Keep existing _buildAppBar, _buildSearchBar, _buildBottomNav methods below exactly as they were) ...
+  
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return PreferredSize(
       preferredSize: const Size.fromHeight(60.0),
@@ -164,7 +182,6 @@ class _HomeScreenState extends State<HomeScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Left: Profile
                 GestureDetector(
                   onTap: _toggleProfile,
                   child: Row(
@@ -197,7 +214,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                 ),
-                // Right: Icons
                 Row(
                   children: [
                     IconButton(
@@ -222,7 +238,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // --- NEW: Animated Search Bar ---
   Widget _buildSearchBar(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -255,30 +270,9 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // --- NEW: Animated FAB from HTML ---
-  Widget _buildFab(BuildContext context) {
-    bool isFabVisible = _selectedIndex == 0 && !_isProfileOpen;
-
-    return AnimatedSlide(
-      duration: const Duration(milliseconds: 300),
-      offset: isFabVisible ? Offset.zero : const Offset(0, 2),
-      child: SlideTransition(
-        position: _fabAnimation,
-        child: FloatingActionButton(
-          onPressed: _onAddCashbook,
-          backgroundColor: _primaryOrange,
-          shape: const CircleBorder(),
-          elevation: 8.0,
-          child: const Icon(Icons.add, color: Colors.white, size: 28),
-        ),
-      ),
-    );
-  }
-
-  // --- NEW: Custom Bottom Navigation Bar ---
   Widget _buildBottomNav(BuildContext context) {
     return Container(
-      height: 70, // Extra padding for safe area
+      height: 70,
       decoration: const BoxDecoration(
         color: _bgWhite,
         border: Border(top: BorderSide(color: _borderLight, width: 1)),
@@ -286,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen>
           BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))
         ],
       ),
-      padding: const EdgeInsets.only(bottom: 20, top: 8), // Padding for notch
+      padding: const EdgeInsets.only(bottom: 20, top: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
