@@ -60,45 +60,68 @@ class _HomeScreenState extends State<HomeScreen>
 
   // --- FIX 1: Logic to Create New Cashbook ---
   void _onAddCashbook() {
-    final nameController = TextEditingController();
+    final TextEditingController nameController = TextEditingController(); // Local controller
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New Cashbook'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Cashbook Name',
-            hintText: 'e.g. Office, Home, Travel',
-            border: OutlineInputBorder(),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('New Cashbook'),
+          content: TextField(
+            controller: nameController,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Cashbook Name',
+              hintText: 'e.g. Office, Home, Travel',
+              border: OutlineInputBorder(),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _primaryOrange),
-            onPressed: () async {
-              if (nameController.text.trim().isNotEmpty) {
-                final box = Hive.box<Cashbook>('cashbooks');
-                final newBook = Cashbook(
-                  name: nameController.text.trim(),
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                  entries: HiveList(Hive.box('entries')), 
-                );
-                await box.add(newBook);
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _primaryOrange),
+              child: const Text('Create'),
+              onPressed: () async {
+                // 1. Get text directly from controller
+                final String name = nameController.text.trim();
+                debugPrint("Attempting to create cashbook: '$name'"); // Debug log
+
+                if (name.isNotEmpty) {
+                  try {
+                    // 2. Get the box
+                    final box = Hive.box<Cashbook>('cashbooks');
+                    
+                    // 3. Create and Add
+                    final newBook = Cashbook(
+                      name: name,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                      entries: HiveList(Hive.box('entries')),
+                    );
+                    
+                    await box.add(newBook);
+                    debugPrint("Cashbook created successfully!");
+
+                    // 4. Close dialog
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Cashbook "$name" created!')),
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint("Error creating cashbook: $e");
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
