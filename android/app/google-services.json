@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "764127723104-4q1vfq3u0nlvui941o0l1srb1vfgq135.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.sage.books",
-            "certificate_hash": "bc44b981f8eb227e24e6e585976882bf7100dccd"
-          }
-        },
-        {
           "client_id": "764127723104-qc7pdil8tgjr041c9kb7ghh7340b6con.apps.googleusercontent.com",
           "client_type": 3
         }
