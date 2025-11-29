@@ -4,6 +4,9 @@ import 'package:sage/models/cashbook.dart';       // Needed for Cashbook model
 import 'package:sage/screens/cashbook_tab.dart';
 import 'package:sage/screens/profile_tab.dart';
 import 'package:sage/screens/settings_tab.dart';
+import 'package:hive/hive.dart';
+import 'package:sage/models/entry.dart';
+
 
 const Color _primaryOrange = Color(0xFFF15A24);
 const Color _textMedium = Color(0xFF5F5F5F);
@@ -58,72 +61,97 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  // --- FIX 1: Logic to Create New Cashbook ---
+  
   void _onAddCashbook() {
-    final TextEditingController nameController = TextEditingController(); // Local controller
+    final TextEditingController nameController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('New Cashbook'),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Cashbook Name',
-              hintText: 'e.g. Office, Home, Travel',
-              border: OutlineInputBorder(),
-            ),
+      builder: (context) => AlertDialog(
+        title: const Text('New Cashbook'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Cashbook Name',
+            hintText: 'e.g. Office, Home, Travel',
+            border: OutlineInputBorder(),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _primaryOrange),
-              child: const Text('Create'),
-              onPressed: () async {
-                // 1. Get text directly from controller
-                final String name = nameController.text.trim();
-                debugPrint("Attempting to create cashbook: '$name'"); // Debug log
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _primaryOrange),
+            child: const Text('Create'),
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a name')),
+                 );
+                 return;
+              }
 
-                if (name.isNotEmpty) {
-                  try {
-                    // 2. Get the box
-                    final box = Hive.box<Cashbook>('cashbooks');
-                    
-                    // 3. Create and Add
-                    final newBook = Cashbook(
-                      name: name,
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
-                      entries: HiveList(Hive.box('entries')),
-                    );
-                    
-                    await box.add(newBook);
-                    debugPrint("Cashbook created successfully!");
-
-                    // 4. Close dialog
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Cashbook "$name" created!')),
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint("Error creating cashbook: $e");
-                  }
+              try {
+                // 1. Ensure boxes are open (Safety Check)
+                if (!Hive.isBoxOpen('cashbooks')) {
+                   await Hive.openBox<Cashbook>('cashbooks');
                 }
-              },
-            ),
-          ],
-        );
-      },
+                // The 'entries' box is needed for the HiveList inside the cashbook
+                if (!Hive.isBoxOpen('entries')) {
+                   await Hive.openBox<Entry>('entries');
+                }
+
+                // 2. Create the object
+                final box = Hive.box<Cashbook>('cashbooks');
+                final entriesBox = Hive.box<Entry>('entries');
+                
+                final newBook = Cashbook(
+                  name: name,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                  // Initialize with an empty HiveList linked to the entries box
+                  entries: HiveList(entriesBox), 
+                );
+
+                // 3. Save to database
+                await box.add(newBook);
+                debugPrint("Cashbook '$name' created successfully.");
+
+                // 4. Close dialog and show success
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Cashbook "$name" created!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                // 5. CATCH ERRORS: This will tell us why it was failing silently
+                debugPrint("Error creating cashbook: $e");
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 4),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
