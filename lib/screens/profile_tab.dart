@@ -88,15 +88,14 @@ class _ProfileTabState extends State<ProfileTab> {
                     // If successful, the StreamBuilder will automatically update the UI
                   } catch (e) {
                     // --- FIX: SHOW ERROR ON SCREEN ---
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Login Failed: $e'),
                           backgroundColor: Colors.red,
                           duration: const Duration(seconds: 10), // Long duration to read it
                         ),
                       );
-                    }
                   }
                 },
                 icon: const Icon(Icons.login, color: _primaryOrange),

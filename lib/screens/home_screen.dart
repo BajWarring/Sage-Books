@@ -67,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('New Cashbook'),
         content: TextField(
           controller: nameController,
@@ -81,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
@@ -90,11 +90,15 @@ class _HomeScreenState extends State<HomeScreen>
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                 ScaffoldMessenger.of(context).showSnackBar(
+                 ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(content: Text('Please enter a name')),
                  );
                  return;
               }
+
+              // Store the Navigator and ScaffoldMessenger before the async gap.
+              final navigator = Navigator.of(dialogContext);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
 
               try {
                 // 1. Ensure boxes are open (Safety Check)
@@ -123,27 +127,25 @@ class _HomeScreenState extends State<HomeScreen>
                 debugPrint("Cashbook '$name' created successfully.");
 
                 // 4. Close dialog and show success
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (!mounted) return;
+                navigator.pop();
+                scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('Cashbook "$name" created!'),
                       backgroundColor: Colors.green,
                     ),
                   );
-                }
               } catch (e) {
                 // 5. CATCH ERRORS: This will tell us why it was failing silently
                 debugPrint("Error creating cashbook: $e");
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (!mounted) return;
+                scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('Error: $e'),
                       backgroundColor: Colors.red,
                       duration: const Duration(seconds: 4),
                     ),
                   );
-                }
               }
             },
           ),

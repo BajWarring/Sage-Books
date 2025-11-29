@@ -4,7 +4,11 @@ import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  
+  // --- FIX: Paste your Web Client ID here ---
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: "764127723104-qc7pdil8tgjr041c9kb7ghh7340b6con.apps.googleusercontent.com", 
+  );
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -34,7 +38,7 @@ class AuthService {
     } catch (e) {
       // --- FIX: Rethrow the error so the UI can see it ---
       debugPrint("Error signing in: $e");
-      throw e; 
+      rethrow;
     }
   }
 
